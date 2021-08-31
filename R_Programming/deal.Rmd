@@ -1,0 +1,118 @@
+---
+title: "deal.Rmd"
+author: "Ethan Decker"
+date: "3/25/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+ Your task consists of arguing empirically whether Marilyn Vos Savant is 
+correct. In an R script named `deal.R` (or `deal.Rmd`), write a simulation 
+study that replicates the game show as much as possible (i.e., randomly 
+choosing doors, etc.). Implement both strategies (i.e., "do not switch" versus 
+"switch").  Give the probability of winning under each of the strategies. 
+Quantify your uncertainity about the emperically estimated probabilities by 
+forming a confidence intervals on the proportions of wins.
+Let's set up one round of a game:
+```{r}
+#we need three doors to choose from
+doors <- c(1,2,3)
+#we need to pick one of three doors at random
+my.door <- sample(doors, size = 1, prob = c(1/3,1/3,1/3))
+#we need the other two doors...
+other.doors <- doors[doors != my.door] #success! we have 3 doors with one picked at random!
+```
+Now that we have doors we really only need one prize randomly hidden behind one of the doors...
+```{r}
+Big.prize <- sample(doors, size = 1, prob =  c(1/3,1/3,1/3))
+#we need to open up one of the other doors and throw it away
+swap.door <- sample(other.doors[other.doors == Big.prize], size = 1)
+```
+Now we can set up a monte carlo simulation for a strategy, Let's not swap doors. 
+1st Simulation, Strategy One don't switch your door
+```{r}
+#write a function that creates this simulation
+doors <- c(1,2,3)
+my.door <- sample(doors, size = 1, prob = c(1/3,1/3,1/3))
+other.doors <- doors[doors != my.door]
+Big.prize <- sample(doors, size = 1, prob =  c(1/3,1/3,1/3))
+swap.door <- doors[doors != my.door]
+strat.1 <- function() {
+  doors <- c(1,2,3)
+  my.door <- sample(doors, size = 1, prob = c(1/3,1/3,1/3))
+  other.doors <- doors[doors != my.door]
+  Big.prize <- sample(doors, size = 1, prob =  c(1/3,1/3,1/3))
+  y <- 1
+  x <- 0
+  if(my.door == Big.prize)
+  return(y)
+    else(my.door != Big.prize)
+  return(x)
+}
+```
+The first strategy is just a 1/3 chance you pick the right door. So the equation is simply if you picked the right door or not. The rest other door opened and the option to swap don't really matter in this case if the prize is assigned before you pick your door and your strategy is to not swap doors. 
+The monte Carlo simulation would be this then:
+```{r}
+sim <- function(){
+  replicate(1000, strat.1())
+}
+mc_est <- replicate(1000, sim())
+mc_mean <- mean(mc_est)
+mc_sd <- sd(mc_est)
+x_bar <- mc_mean
+sd_x <- sd(mc_est)
+sqrt_n <- sqrt(length(mc_est))
+ci <- x_bar + c(-1,1)*qnorm(1-.025)*sd_x/sqrt_n
+cat("Confidence Interval for the mean of Strategy 1 =", ci, "\n")
+cat("Estimated Chance of winning with Strategy 1 =", x_bar, "\n")
+```
+Now lets work on strategy 2, switching your door
+```{r}
+#lets start with some doors, I like doors
+doors <- c(1,2,3)
+Big.prize <- sample(doors, size = 1)
+my.door <- sample(doors, size = 1)
+other.doors <- doors[doors != my.door]
+trash.door <- other.doors[other.doors != Big.prize]
+remaining.doors <- as.numeric(sample(trash.door, size = 1))
+swap.door <- as.numeric(sample(remaining.doors, size = 1))
+#okay now lets call out a function that uses this information
+strat.2 <- function(x){
+  doors <- 1:3
+  Big.prize <- sample(1:3, size = 1, prob = c(1/3,1/3,1/3))
+  my.door <- sample(1:3, size = 1, prob = c(1/3,1/3,1/3))
+  other.doors <- doors[doors != my.door]
+  trash.door <- other.doors[other.doors != Big.prize]
+  if(length(trash.door) == 2)
+    remaining.doors <- sample(trash.door, size = 1, prob = c(.5, .5))
+  else(length(trash.door) == 1)
+  remaining.doors <- sample(trash.door, size = 1, prob = NULL)
+  final.door <- other.doors[other.doors != remaining.doors]
+  swap.door <- as.numeric(sample(final.door, size = 1))
+  x <- 1
+  y <- 0
+  if(my.door == Big.prize)
+    return(y)
+  else(swap.door == Big.prize)
+    return(x)
+}
+strat.2()
+#now lets simulate it a few times
+sim.2 <- function(){
+  replicate(1000, strat.2())
+}
+mc_est.2 <- replicate(100, sim.2())
+mc_mean.2 <- mean(mc_est.2)
+x_bar <- mc_mean.2
+sd_x <- sd(mc_est.2)
+sqrt_n <- sqrt(length(mc_est.2))
+ci <- x_bar + c(-1,1)*qnorm(1-.025)*sd_x/sqrt_n
+cat("Confidence Interval for the mean of Strategy 1 =", ci, "\n")
+cat("Estimated Chance of winning with Strategy 2 =", x_bar, "\n")
+```
+
+
+

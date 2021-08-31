@@ -1,0 +1,134 @@
+---
+title: "Midterm"
+author: "Ethan Decker"
+date: "3/27/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+(35 points) Define a function called pandemic that simulates a single scenario. This function should take the following arguments:
+pop_size: The size of the population
+infected: The number of people initially infected
+init_contact_rate: This is a value passed to a Poisson distribution that defines the number of people an infected individual comes in contact with each day.
+sd_contact_rate: The same as above, but represents the number of people after social distancing is implemented
+sd_pct: A value between 0 and 1 indicating what percentage of the population has contracted the virus (both those currently infected and those recovered) before social distancing is implemented.
+infection_rate: The likelihood that contact with the virus causes infection. For this simulation, this value is 0.05
+1.)
+```{r}
+pandemic <- function(pop_size, infected, init_contact_rate, sd_contact_rate, sd_pct, infection_rate){
+  #this is just to count how many times the while loop runs, each run is 1 day
+    x <- 0
+  #so recovered overwrites in the loop I will define it here first
+    recovered <- 0
+  #this way the while loop knows what I'm talking about
+    not.infected <- pop_size
+    max.inf <- infected
+    threshold <- 0
+  #still infected was the way I found to store the days for how many sick days are left. It had to be separate from the new days of the people who were newly infected and merged together later
+    #This still infected is the days for the first people infected. It makes the loop run smoother
+    still.infected <- rpois(infected, lambda = 4)
+    new.infected <- 0
+  while(infected != 0 && not.infected >= 0){
+    #lets separate out the population of interest
+    #total days starts on day 1 of the 5 infected people out infecting others
+    total.days <- x
+    infected <- infected
+    still.infected <- still.infected
+    new.infected <- new.infected
+    recovered <- recovered
+    corvd <- recovered + infected
+    not.infected <- pop_size-corvd
+    threshold <- corvd/pop_size
+    #we need to later return max infected people
+    if(max.inf <= infected)
+       max.inf <- infected
+    else(max.inf > infected)
+      max.inf <- max.inf
+    #how long are the newly infected sick? How many people are still infecting others? 
+    num.daysper.person <- rpois(new.infected, lambda = 4)
+    num.peopleinfecting.others <- length(num.daysper.person)+length(still.infected)
+    #this next line should add together to make one data.frame every time around, subract by 1 later, and moves this group of people toward recovery
+    still.infected <- c(still.infected, num.daysper.person)
+  #sum this up to get a single value used to calculate number of contacts the infected people have and how many of those contacts got infected
+    if(sd_pct > threshold)
+      new.infected <- sum(rpois(num.peopleinfecting.others, lambda = init_contact_rate))
+    else(sd_pct <= threshold)
+      new.infected <- sum(rpois(num.peopleinfecting.others,lambda = sd_contact_rate))
+      #the rbinom gives the number of people contacted that actually get sick with 5% infection rate. The new.infected represents the number of contacts, or the obersavtions it's running thru with a 5% rate it should take about 5 percent on average of the number of observations.
+    new.infected <- rbinom(n = new.infected, size = 1, prob = infection_rate)
+  #summing this up should give a single value for the actual number of newly infected people. 
+    new.infected <- sum(new.infected)
+  #decrease number of days for each person infected by 1
+     for(i in still.infected) {
+    still.infected[i] <- i-1
+     } 
+    #these next 2 lines refreshes the recovered portion of the population, and the still infected portion
+    recovered <- recovered + length(still.infected[still.infected <= 0])
+    still.infected <- still.infected[still.infected != 0]
+  #make a new infected pool
+    infected <- new.infected+length(still.infected)
+    x <- x+1
+  }
+  #should return max number of people infected at any given point and number of days until no more active cases.
+  return(c(max.inf,total.days))
+}
+```
+Scenario 1: pop_size = 1000 - 1000 people in the population
+infected = 5 - 5 initial infections
+init_contact_rate = 15 - this indicates that without social distancing, the average infected individual has 15 community contacts each day. This is a Lambda value passed to a Poisson distribution.
+sd_contact_rate = 2 - this indicates that with social distancing in place, the average infected individual has 2 community contacts each day. This is a Lambda value passed to a Poisson distribution.
+sd_pct = 0.5 - social distancing doesn’t take place until half of the population has contracted the virus
+infection_rate = 0.05 - likelihood of contracting the virus when contact is made with an infected individual
+2.a.)
+```{r}
+n_reps <- 1000
+Sim.1 <- replicate(n_reps, pandemic(pop_size = 1000, infected = 5, init_contact_rate = 15, sd_contact_rate = 2, sd_pct = 0.5, infection_rate = 0.05))
+#it works!!!!!!!!!! my machine actually works!!!!!!! It's raining food!!!
+```
+Scenario 2:
+pop_size = 1000 - 1000 people in the population
+infected = 5 - 5 initial infections
+init_contact_rate = 15 - this indicates that without social distancing, the average infected individual has 15 community contacts each day. This is a Lambda value passed to a Poisson distribution.
+sd_contact_rate = 2 - this indicates that with social distancing in place, the average infected individual has 2 community contacts each day. This is a Lambda value passed to a Poisson distribution.
+sd_pct = 0.1 - social distancing takes place after 10% of the population has contracted the virus
+infection_rate = 0.05 - likelihood of contracting the virus when contact is made with an infected individual
+```{r}
+Sim.2 <- replicate(n_reps, pandemic(pop_size = 1000, infected = 5, init_contact_rate = 15, sd_contact_rate = 2, sd_pct = 0.1, infection_rate = 0.05))
+```
+3.) Estimate the average number of days the infection lasts in each scenario
+```{r}
+Sim.1.avg <- mean(Sim.1[2,])
+Sim.2.avg <- mean(Sim.2[2,])
+cat("Average Number of Days for 1st Scenario =", Sim.1.avg, "\n")
+cat("Average Number of Days for 2nd Scenario =", Sim.2.avg, "\n")
+```
+4.) Estimate the maximum simultaneous infections in each Scenario
+```{r}
+Sim.1.est <- mean(Sim.1[1,])
+Sim.2.est <- mean(Sim.2[1,])
+cat("Average Number of Max Infections for 1st Scenario =", Sim.1.est, "\n")
+cat("Average Number of Max Infections for 2nd Scenario =", Sim.2.est, "\n")
+```
+5.) Confidence Interval for both Scenarios for both Estimates
+```{r}
+Confidence.Interval <- function(x){
+  x_bar <- mean(x)
+sd_x <- sd(x)
+sqrt_n <- sqrt(length(x))
+alpha <- 0.05
+
+ci <- x_bar + c(-1, 1) * qnorm(1 - alpha/2) * sd_x / sqrt_n
+return(ci)
+}
+Interval.1.1 <- Confidence.Interval(Sim.1[2,])
+Interval.1.2 <- Confidence.Interval(Sim.1[1,])
+Interval.2.1 <- Confidence.Interval(Sim.2[2,])
+Interval.2.2 <- Confidence.Interval(Sim.2[1,])
+cat("Confidence Interval for Scenario 1 Days =", Interval.1.1, "\n")
+cat("Confidence Interval for Scenario 1 Max Infections =", Interval.1.2, "\n")
+cat("Confidence Interval for Scenario 2 Days =", Interval.2.1, "\n")
+cat("Confidence Interval for Scenario 2 Max Infections =", Interval.2.2, "\n")
+```
+
